@@ -10,10 +10,10 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
 
-    let cpu = CPU::build();
+    let mut cpu = CPU::build();
 
     if let Err(e) = cpu.run(file_path) {
-        eprintln!("CPU error: {e}");
+        eprintln!("Chip-8 error: {e}");
         process::exit(1)
     }
 }
