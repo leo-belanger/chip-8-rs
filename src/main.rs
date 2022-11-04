@@ -1,4 +1,5 @@
 mod cpu;
+mod display;
 mod ram;
 
 use cpu::CPU;

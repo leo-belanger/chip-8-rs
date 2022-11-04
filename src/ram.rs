@@ -10,7 +10,7 @@ impl RAM {
 
         if address + number_of_bytes >= RAM_SIZE_IN_BYTES {
             return Err(format!(
-                "Trying to write {} bytes at address {} would exceed bounds({} bytes) of the RAM.",
+                "Trying to write {} bytes at address {:#04X?} would exceed bounds({} bytes) of the RAM.",
                 number_of_bytes, address, RAM_SIZE_IN_BYTES
             ));
         }
@@ -24,7 +24,7 @@ impl RAM {
     pub fn read(&self, address: usize, bytes_to_read: usize) -> Result<&[u8], String> {
         if address + bytes_to_read >= RAM_SIZE_IN_BYTES {
             return Err(format!(
-                "Trying to read {} bytes at address {} would exceed bounds({} bytes) of the RAM.",
+                "Trying to read {} bytes at address {:#04X?} would exceed bounds({} bytes) of the RAM.",
                 bytes_to_read, address, RAM_SIZE_IN_BYTES
             ));
         }
