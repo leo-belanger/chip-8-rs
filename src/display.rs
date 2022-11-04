@@ -1,20 +1,20 @@
 extern crate sdl2;
 
+use sdl2::{render::Canvas, video::Window};
+
 pub struct Display {
     pixels: [[u8; 64]; 32],
+    canvas: Canvas<Window>,
 }
 
 impl Display {
-    pub fn init() {}
-    pub fn refresh(&self) {}
-}
-
-impl Default for Display {
-    fn default() -> Self {
+    pub fn from(canvas: Canvas<Window>) -> Display {
         Display {
             pixels: [[0; 64]; 32],
+            canvas,
         }
     }
+    pub fn refresh(&self) {}
 }
 
 #[rustfmt::skip]

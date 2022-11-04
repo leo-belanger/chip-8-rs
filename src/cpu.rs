@@ -1,6 +1,6 @@
-use crate::display;
-use crate::ram;
+use crate::{display, ram};
 
+use sdl2::{event::Event, keyboard::Keycode, Sdl};
 use std::{error::Error, fs};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
@@ -11,7 +11,6 @@ struct Instruction {
     low: u8,
 }
 
-#[derive(Default)]
 pub struct CPU {
     delay_timer: u8,
     sound_timer: u8,
@@ -22,13 +21,37 @@ pub struct CPU {
     v: [u8; 16],
     display: display::Display,
     ram: ram::RAM,
+    sdl_context: Sdl,
 }
 
 impl CPU {
     pub fn build() -> CPU {
+        let sdl_context = sdl2::init().unwrap();
+        let video_subsystem = sdl_context.video().unwrap();
+
+        let window = video_subsystem
+            .window("rust-sdl2 demo", 800, 600)
+            .position_centered()
+            .build()
+            .unwrap();
+
+        let canvas = window.into_canvas().build().unwrap();
+
+        let display = display::Display::from(canvas);
+
+        let ram = ram::RAM::build();
+
         CPU {
+            delay_timer: 0,
+            sound_timer: 0,
+            i: 0,
             pc: PROGRAM_STARTING_ADDRESS as u16,
-            ..Default::default()
+            sp: 0,
+            stack: [0; 16],
+            v: [0; 16],
+            display,
+            ram,
+            sdl_context,
         }
     }
 
@@ -40,6 +63,8 @@ impl CPU {
 
         println!("Read {} bytes from RAM.", bytes_from_ram.len());
         println!("RAM: {:#04X?}", bytes_from_ram);
+
+        self.main_loop()?;
 
         Ok(())
     }
@@ -83,8 +108,19 @@ impl CPU {
     }
 
     fn main_loop(&mut self) -> Result<(), Box<dyn Error>> {
-        loop {
-            // TODO: fetch inputs
+        let mut event_pump = self.sdl_context.event_pump().unwrap();
+
+        'running: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => break 'running,
+                    _ => {}
+                }
+            }
 
             let instruction = self.read_instruction()?;
 

@@ -5,6 +5,10 @@ pub struct RAM {
 }
 
 impl RAM {
+    pub fn build() -> RAM {
+        RAM { data: [0; 4096] }
+    }
+
     pub fn write(&mut self, address: usize, data: &[u8]) -> Result<usize, String> {
         let number_of_bytes = data.len();
 
@@ -21,6 +25,7 @@ impl RAM {
 
         Ok(number_of_bytes)
     }
+
     pub fn read(&self, address: usize, bytes_to_read: usize) -> Result<&[u8], String> {
         if address + bytes_to_read >= RAM_SIZE_IN_BYTES {
             return Err(format!(
@@ -30,11 +35,5 @@ impl RAM {
         }
 
         Ok(&self.data[address..address + bytes_to_read + 1])
-    }
-}
-
-impl Default for RAM {
-    fn default() -> Self {
-        RAM { data: [0; 4096] }
     }
 }
