@@ -1,8 +1,11 @@
+extern crate sdl2;
+
 pub struct Display {
     pixels: [[u8; 64]; 32],
 }
 
 impl Display {
+    pub fn init() {}
     pub fn refresh(&self) {}
 }
 
