@@ -6,6 +6,11 @@ use std::{error::Error, fs};
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
 
+struct Instruction {
+    high: u8,
+    low: u8,
+}
+
 #[derive(Default)]
 pub struct CPU {
     delay_timer: u8,
@@ -22,6 +27,7 @@ pub struct CPU {
 impl CPU {
     pub fn build() -> CPU {
         CPU {
+            pc: PROGRAM_STARTING_ADDRESS as u16,
             ..Default::default()
         }
     }
@@ -62,6 +68,35 @@ impl CPU {
             bytes_loaded, address
         );
 
+        Ok(())
+    }
+
+    fn read_instruction(&mut self) -> Result<Instruction, Box<dyn Error>> {
+        let bytes = self.ram.read(self.pc.into(), 2)?;
+
+        self.pc += 2;
+
+        Ok(Instruction {
+            high: bytes[0].clone(),
+            low: bytes[1].clone(),
+        })
+    }
+
+    fn main_loop(&mut self) -> Result<(), Box<dyn Error>> {
+        loop {
+            // TODO: fetch inputs
+
+            let instruction = self.read_instruction()?;
+
+            self.execute_instruction(&instruction)?;
+
+            self.display.refresh();
+        }
+
+        Ok(())
+    }
+
+    fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 }

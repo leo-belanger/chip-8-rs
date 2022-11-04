@@ -2,6 +2,10 @@ pub struct Display {
     pixels: [[u8; 64]; 32],
 }
 
+impl Display {
+    pub fn refresh(&self) {}
+}
+
 impl Default for Display {
     fn default() -> Self {
         Display {
