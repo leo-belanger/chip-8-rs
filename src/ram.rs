@@ -5,7 +5,7 @@ pub struct RAM {
 }
 
 impl RAM {
-    pub fn build() -> RAM {
+    pub fn new() -> RAM {
         RAM { data: [0; 4096] }
     }
 

@@ -25,7 +25,7 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn build() -> CPU {
+    pub fn new() -> CPU {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
 
@@ -37,9 +37,9 @@ impl CPU {
 
         let canvas = window.into_canvas().build().unwrap();
 
-        let display = display::Display::from(canvas);
+        let display = display::Display::new(canvas);
 
-        let ram = ram::RAM::build();
+        let ram = ram::RAM::new();
 
         CPU {
             delay_timer: 0,

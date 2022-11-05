@@ -11,7 +11,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
 
-    let mut cpu = CPU::build();
+    let mut cpu = CPU::new();
 
     if let Err(e) = cpu.run(file_path) {
         eprintln!("Chip-8 error: {e}");
