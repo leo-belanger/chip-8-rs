@@ -14,6 +14,11 @@ impl Display {
             canvas,
         }
     }
+    pub fn clear(&mut self) {
+        self.pixels.fill([0; 64]);
+
+        self.refresh();
+    }
     pub fn refresh(&self) {}
 }
 

@@ -133,6 +133,76 @@ impl CPU {
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
+        let most_significant_bit = instruction.high >> 12;
+
+        match most_significant_bit {
+            0x0 => self.execute_00xx_instruction(instruction),
+            0x1 => self.execute_1nnn_instruction(instruction),
+            0x2 => self.execute_2nnn_instruction(instruction),
+            _ => (),
+        };
+
         Ok(())
+    }
+
+    fn execute_00xx_instruction(&mut self, instruction: &Instruction) {
+        match instruction.low {
+            0xE0 => self.display.clear(),
+            0xEE => {
+                self.pc = self.stack[self.sp as usize];
+                self.sp -= 1;
+            }
+            _ => (),
+        };
+    }
+
+    fn execute_1nnn_instruction(&mut self, instruction: &Instruction) {
+        let address = CPU::get_12_lowest_bits_from_instruction(instruction);
+
+        self.pc = address;
+    }
+
+    fn execute_2nnn_instruction(&mut self, instruction: &Instruction) {
+        self.sp += 1;
+        self.stack[self.sp as usize] = self.pc;
+
+        let address = CPU::get_12_lowest_bits_from_instruction(instruction);
+
+        self.pc = address;
+    }
+
+    fn execute_3xkk_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_4xkk_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_5xkk_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_6xkk_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_7xkk_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_8xyz_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_9xy0_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_annn_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_bnnn_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_cxkk_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_dxyn_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_exxx_instruction(&mut self, instruction: &Instruction) {}
+
+    fn execute_fxxx_instruction(&mut self, instruction: &Instruction) {}
+
+    fn get_12_lowest_bits_from_instruction(instruction: &Instruction) -> u16 {
+        let mut value: u16 = instruction.low.into();
+        let high: u16 = (instruction.high & 0xF).into();
+
+        value |= high << 8;
+
+        value
     }
 }
