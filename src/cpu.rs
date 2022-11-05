@@ -133,12 +133,25 @@ impl CPU {
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
-        let most_significant_bit = instruction.high >> 12;
+        let most_significant_4_bits = instruction.high >> 12;
 
-        match most_significant_bit {
+        match most_significant_4_bits {
             0x0 => self.execute_00xx_instruction(instruction),
             0x1 => self.execute_1nnn_instruction(instruction),
             0x2 => self.execute_2nnn_instruction(instruction),
+            0x3 => self.execute_3xkk_instruction(instruction),
+            0x4 => self.execute_4xkk_instruction(instruction),
+            0x5 => self.execute_5xkk_instruction(instruction),
+            0x6 => self.execute_6xkk_instruction(instruction),
+            0x7 => self.execute_7xkk_instruction(instruction),
+            0x8 => self.execute_8xyz_instruction(instruction),
+            0x9 => self.execute_9xy0_instruction(instruction),
+            0xA => self.execute_annn_instruction(instruction),
+            0xB => self.execute_bnnn_instruction(instruction),
+            0xC => self.execute_cxkk_instruction(instruction),
+            0xD => self.execute_dxyn_instruction(instruction),
+            0xE => self.execute_exxx_instruction(instruction),
+            0xF => self.execute_fxxx_instruction(instruction),
             _ => (),
         };
 
@@ -171,23 +184,83 @@ impl CPU {
         self.pc = address;
     }
 
-    fn execute_3xkk_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_3xkk_instruction(&mut self, instruction: &Instruction) {
+        let register_index = (instruction.high & 0xF) as usize;
 
-    fn execute_4xkk_instruction(&mut self, instruction: &Instruction) {}
+        if self.v[register_index] == instruction.low {
+            self.pc += 2;
+        }
+    }
 
-    fn execute_5xkk_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_4xkk_instruction(&mut self, instruction: &Instruction) {
+        let register_index = (instruction.high & 0xF) as usize;
 
-    fn execute_6xkk_instruction(&mut self, instruction: &Instruction) {}
+        if self.v[register_index] != instruction.low {
+            self.pc += 2;
+        }
+    }
 
-    fn execute_7xkk_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_5xkk_instruction(&mut self, instruction: &Instruction) {
+        let first_register_index = (instruction.high & 0xF) as usize;
+        let second_register_index = (instruction.low & 0xF0) as usize;
 
-    fn execute_8xyz_instruction(&mut self, instruction: &Instruction) {}
+        if self.v[first_register_index] == self.v[second_register_index] {
+            self.pc += 2;
+        }
+    }
 
-    fn execute_9xy0_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_6xkk_instruction(&mut self, instruction: &Instruction) {
+        let register_index = instruction.high & 0xF;
 
-    fn execute_annn_instruction(&mut self, instruction: &Instruction) {}
+        self.v[register_index as usize] = instruction.low;
+    }
 
-    fn execute_bnnn_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_7xkk_instruction(&mut self, instruction: &Instruction) {
+        let register_index = instruction.high & 0xF;
+
+        self.v[register_index as usize] += instruction.low;
+    }
+
+    fn execute_8xyz_instruction(&mut self, instruction: &Instruction) {
+        let first_register_index = (instruction.high & 0xF) as usize;
+        let second_register_index = (instruction.low & 0xF0) as usize;
+
+        let least_significant_4_bit = instruction.low & 0xF;
+
+        match least_significant_4_bit {
+            0x0 => self.v[first_register_index as usize] = self.v[second_register_index],
+            0x1 => self.v[first_register_index] |= self.v[second_register_index],
+            0x2 => self.v[first_register_index] &= self.v[second_register_index],
+            0x3 => self.v[first_register_index] ^= self.v[second_register_index],
+            0x4 => (), /* TODO */
+            0x5 => (), /* TODO */
+            0x6 => (), /* TODO */
+            0x7 => (), /* TODO */
+            0xE => (), /* TODO */
+            _ => (),
+        }
+    }
+
+    fn execute_9xy0_instruction(&mut self, instruction: &Instruction) {
+        let first_register_index = (instruction.high & 0xF) as usize;
+        let second_register_index = (instruction.low & 0xF0) as usize;
+
+        if self.v[first_register_index] != self.v[second_register_index] {
+            self.pc += 2;
+        }
+    }
+
+    fn execute_annn_instruction(&mut self, instruction: &Instruction) {
+        let address = CPU::get_12_lowest_bits_from_instruction(instruction);
+
+        self.i = address;
+    }
+
+    fn execute_bnnn_instruction(&mut self, instruction: &Instruction) {
+        let address = CPU::get_12_lowest_bits_from_instruction(instruction);
+
+        self.pc = address + (self.v[0] as u16);
+    }
 
     fn execute_cxkk_instruction(&mut self, instruction: &Instruction) {}
 
