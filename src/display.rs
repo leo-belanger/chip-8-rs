@@ -121,24 +121,24 @@ impl Display {
     }
 
     pub fn draw_sprite(&mut self, sprite: &[u8], position: Position) -> Result<(), String> {
-        // TODO: wrong, should wrap around
-        if position.x + 7 >= WIDTH || position.y + sprite.len() >= HEIGHT {
-            return Err(
-                format!("Attempting to draw sprite {:?} at position {:?} would exceed screen bounds of {} by {} pixels.", sprite, position, WIDTH, HEIGHT),
-            );
-        }
-
         let mut row = position.y;
 
+        let masks = [0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01];
+
         for line in sprite {
-            self.pixels[row][position.x] = line & 0x80 == 0x80;
-            self.pixels[row][position.x + 1] = line & 0x40 == 0x40;
-            self.pixels[row][position.x + 2] = line & 0x20 == 0x20;
-            self.pixels[row][position.x + 3] = line & 0x10 == 0x10;
-            self.pixels[row][position.x + 4] = line & 0x08 == 0x08;
-            self.pixels[row][position.x + 5] = line & 0x04 == 0x04;
-            self.pixels[row][position.x + 6] = line & 0x02 == 0x02;
-            self.pixels[row][position.x + 7] = line & 0x01 == 0x01;
+            if row >= HEIGHT {
+                row = 0;
+            }
+
+            masks.iter().enumerate().for_each(|(i, mask)| {
+                let mut column_index = position.x + i;
+
+                if column_index >= WIDTH {
+                    column_index -= WIDTH;
+                }
+
+                self.pixels[row][column_index] = (line & mask) == *mask;
+            });
 
             row += 1;
         }
