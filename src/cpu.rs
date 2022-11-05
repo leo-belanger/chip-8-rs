@@ -27,17 +27,8 @@ pub struct CPU {
 impl CPU {
     pub fn new() -> CPU {
         let sdl_context = sdl2::init().unwrap();
-        let video_subsystem = sdl_context.video().unwrap();
 
-        let window = video_subsystem
-            .window("rust-sdl2 demo", 800, 600)
-            .position_centered()
-            .build()
-            .unwrap();
-
-        let canvas = window.into_canvas().build().unwrap();
-
-        let display = display::Display::new(canvas);
+        let display = display::Display::new(&sdl_context);
 
         let ram = ram::RAM::new();
 
@@ -125,15 +116,13 @@ impl CPU {
             let instruction = self.read_instruction()?;
 
             self.execute_instruction(&instruction)?;
-
-            self.display.refresh();
         }
 
         Ok(())
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
-        let most_significant_4_bits = instruction.high >> 12;
+        let most_significant_4_bits = (instruction.high as u16) >> 12;
 
         match most_significant_4_bits {
             0x0 => self.execute_00xx_instruction(instruction),
