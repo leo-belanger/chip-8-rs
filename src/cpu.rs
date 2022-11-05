@@ -1,4 +1,7 @@
-use crate::{display, ram};
+use crate::{
+    display::{self, Position},
+    ram,
+};
 
 use sdl2::{event::Event, keyboard::Keycode, Sdl};
 use std::{error::Error, fs};
@@ -163,7 +166,7 @@ impl CPU {
             0xA => self.execute_annn_instruction(instruction),
             0xB => self.execute_bnnn_instruction(instruction),
             0xC => self.execute_cxkk_instruction(instruction),
-            0xD => self.execute_dxyn_instruction(instruction),
+            0xD => self.execute_dxyn_instruction(instruction)?,
             0xE => self.execute_exxx_instruction(instruction),
             0xF => self.execute_fxxx_instruction(instruction),
             _ => (),
@@ -251,7 +254,22 @@ impl CPU {
 
     fn execute_cxkk_instruction(&mut self, instruction: &Instruction) {}
 
-    fn execute_dxyn_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_dxyn_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
+        let sprite = self
+            .ram
+            .read(self.i as usize, instruction.nibbles.3 as usize)?;
+
+        let position = Position::new(
+            self.v[instruction.x] as usize,
+            self.v[instruction.y] as usize,
+        );
+
+        self.display.draw_sprite(sprite, position)?;
+
+        // TODO: collision check, draw sprite should return bool for collision
+
+        Ok(())
+    }
 
     fn execute_exxx_instruction(&mut self, instruction: &Instruction) {}
 

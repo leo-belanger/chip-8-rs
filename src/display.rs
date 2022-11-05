@@ -14,6 +14,12 @@ pub struct Position {
     y: usize,
 }
 
+impl Position {
+    pub fn new(x: usize, y: usize) -> Position {
+        Position { x, y }
+    }
+}
+
 pub struct Display {
     pixels: [[bool; WIDTH]; HEIGHT],
     canvas: Canvas<Window>,
@@ -48,7 +54,7 @@ impl Display {
         self.canvas.present();
     }
 
-    pub fn refresh(&mut self) {
+    pub fn refresh(&mut self) -> Result<(), String> {
         self.canvas.set_draw_color(BLACK);
         self.canvas.clear();
         self.canvas.present();
@@ -68,8 +74,12 @@ impl Display {
                     let x = col_index as u32 * rect_width;
                     let y = row_index as u32 * rect_width;
 
-                    self.canvas
-                        .fill_rect(Rect::new(x as i32, y as i32, rect_width, rect_height));
+                    self.canvas.fill_rect(Rect::new(
+                        x as i32,
+                        y as i32,
+                        rect_width,
+                        rect_height,
+                    ))?;
                 }
 
                 col_index += 1;
@@ -79,6 +89,8 @@ impl Display {
         }
 
         self.canvas.present();
+
+        Ok(())
     }
 
     pub fn draw_character_from_font(
@@ -109,6 +121,7 @@ impl Display {
     }
 
     pub fn draw_sprite(&mut self, sprite: &[u8], position: Position) -> Result<(), String> {
+        // TODO: wrong, should wrap around
         if position.x + 7 >= WIDTH || position.y + sprite.len() >= HEIGHT {
             return Err(
                 format!("Attempting to draw sprite {:?} at position {:?} would exceed screen bounds of {} by {} pixels.", sprite, position, WIDTH, HEIGHT),
@@ -130,7 +143,7 @@ impl Display {
             row += 1;
         }
 
-        self.refresh();
+        self.refresh()?;
 
         Ok(())
     }
