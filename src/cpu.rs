@@ -3,6 +3,8 @@ use crate::{
     ram,
 };
 
+use rand::prelude::*;
+
 use sdl2::{event::Event, keyboard::Keycode, Sdl};
 use std::{error::Error, fs, thread, time::Duration};
 
@@ -29,6 +31,7 @@ pub struct CPU {
     display: display::Display,
     ram: ram::RAM,
     sdl_context: Sdl,
+    rng: ThreadRng,
 }
 
 impl CPU {
@@ -38,6 +41,8 @@ impl CPU {
         let display = display::Display::new(&sdl_context);
 
         let ram = ram::RAM::new();
+
+        let rng = rand::thread_rng();
 
         CPU {
             delay_timer: 0,
@@ -50,6 +55,7 @@ impl CPU {
             display,
             ram,
             sdl_context,
+            rng,
         }
     }
 
@@ -159,8 +165,6 @@ impl CPU {
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
-        // println!("Executing instruction {:?}", instruction);
-
         match instruction.nibbles.0 {
             0x0 => self.execute_00xx_instruction(instruction),
             0x1 => self.execute_1nnn_instruction(instruction),
@@ -186,7 +190,7 @@ impl CPU {
 
     fn execute_00xx_instruction(&mut self, instruction: &Instruction) {
         match instruction.kk {
-            // 0xE0 => self.display.clear(),
+            0xE0 => self.display.clear(),
             0xEE => {
                 self.pc = self.stack[self.sp as usize];
                 self.sp -= 1;
@@ -238,11 +242,49 @@ impl CPU {
             0x1 => self.v[instruction.x] |= self.v[instruction.y],
             0x2 => self.v[instruction.x] &= self.v[instruction.y],
             0x3 => self.v[instruction.x] ^= self.v[instruction.y],
-            0x4 => (), /* TODO */
-            0x5 => (), /* TODO */
-            0x6 => (), /* TODO */
-            0x7 => (), /* TODO */
-            0xE => (), /* TODO */
+            0x4 => {
+                let result: u16 = self.v[instruction.x] as u16 + self.v[instruction.y] as u16;
+
+                self.v[0xF] = if result > 255 { 1 } else { 0 };
+
+                self.v[instruction.x] = result as u8;
+            }
+            0x5 => {
+                self.v[0xF] = if self.v[instruction.x] > self.v[instruction.y] {
+                    1
+                } else {
+                    0
+                };
+
+                self.v[instruction.x] -= self.v[instruction.y];
+            }
+            0x6 => {
+                self.v[0xF] = if self.v[instruction.x] & 0x01 != 0 {
+                    1
+                } else {
+                    0
+                };
+
+                self.v[instruction.x] /= 2;
+            }
+            0x7 => {
+                self.v[0xF] = if self.v[instruction.y] > self.v[instruction.x] {
+                    1
+                } else {
+                    0
+                };
+
+                self.v[instruction.x] = self.v[instruction.y] - self.v[instruction.x];
+            }
+            0xE => {
+                self.v[0xF] = if self.v[instruction.x] & 0x80 != 0 {
+                    1
+                } else {
+                    0
+                };
+
+                self.v[instruction.x] *= 2;
+            }
             _ => (),
         }
     }
@@ -261,7 +303,11 @@ impl CPU {
         self.pc = instruction.nnn + (self.v[0] as u16);
     }
 
-    fn execute_cxkk_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_cxkk_instruction(&mut self, instruction: &Instruction) {
+        let random_byte: u8 = self.rng.gen_range(0..=255);
+
+        self.v[instruction.x] = random_byte & instruction.kk;
+    }
 
     fn execute_dxyn_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
         let sprite = self
