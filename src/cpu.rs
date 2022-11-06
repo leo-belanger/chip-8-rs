@@ -4,7 +4,7 @@ use crate::{
 };
 
 use sdl2::{event::Event, keyboard::Keycode, Sdl};
-use std::{error::Error, fs};
+use std::{error::Error, fs, thread, time::Duration};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
@@ -56,11 +56,6 @@ impl CPU {
     pub fn run(&mut self, file_path: &str) -> Result<(), Box<dyn Error>> {
         self.load_font_in_ram()?;
         self.load_program_in_ram(file_path)?;
-
-        let bytes_from_ram = self.ram.read(0x000, 0xFFF)?;
-
-        println!("Read {} bytes from RAM.", bytes_from_ram.len());
-        println!("RAM: {:#04X?}", bytes_from_ram);
 
         self.main_loop()?;
 
@@ -145,16 +140,26 @@ impl CPU {
                 }
             }
 
+            if self.delay_timer > 0 {
+                self.delay_timer -= 1;
+            }
+
+            if self.sound_timer > 0 {
+                self.sound_timer -= 1;
+            }
+
             let instruction = self.read_instruction()?;
 
             self.execute_instruction(&instruction)?;
+
+            thread::sleep(Duration::from_millis(2));
         }
 
         Ok(())
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
-        println!("Executing instruction {:?}", instruction);
+        // println!("Executing instruction {:?}", instruction);
 
         match instruction.nibbles.0 {
             0x0 => self.execute_00xx_instruction(instruction),
@@ -181,7 +186,7 @@ impl CPU {
 
     fn execute_00xx_instruction(&mut self, instruction: &Instruction) {
         match instruction.kk {
-            0xE0 => self.display.clear(),
+            // 0xE0 => self.display.clear(),
             0xEE => {
                 self.pc = self.stack[self.sp as usize];
                 self.sp -= 1;
@@ -268,14 +273,19 @@ impl CPU {
             self.v[instruction.y] as usize,
         );
 
-        self.display.draw_sprite(sprite, position)?;
+        let collided = self.display.draw_sprite(sprite, position)?;
 
-        // TODO: collision check, draw sprite should return bool for collision
+        self.v[0xF] = if collided { 1 } else { 0 };
 
         Ok(())
     }
 
     fn execute_exxx_instruction(&mut self, instruction: &Instruction) {}
 
-    fn execute_fxxx_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_fxxx_instruction(&mut self, instruction: &Instruction) {
+        match instruction.kk {
+            0x07 => self.v[instruction.x] = self.delay_timer,
+            _ => (),
+        }
+    }
 }

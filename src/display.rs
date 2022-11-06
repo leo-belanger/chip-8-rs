@@ -57,22 +57,22 @@ impl Display {
     pub fn refresh(&mut self) -> Result<(), String> {
         self.canvas.set_draw_color(BLACK);
         self.canvas.clear();
-        self.canvas.present();
 
         self.canvas.set_draw_color(WHITE);
-
-        let mut row_index = 0;
-        let mut col_index = 0;
 
         let window_size = self.canvas.window().size();
         let rect_width = window_size.0 / WIDTH as u32;
         let rect_height = window_size.1 / HEIGHT as u32;
 
+        let mut row_index = 0;
+
         while row_index < HEIGHT {
+            let y = (row_index as u32) * rect_height;
+            let mut col_index = 0;
+
             while col_index < WIDTH {
                 if self.pixels[row_index][col_index] {
-                    let x = col_index as u32 * rect_width;
-                    let y = row_index as u32 * rect_width;
+                    let x = (col_index as u32) * rect_width;
 
                     self.canvas.fill_rect(Rect::new(
                         x as i32,
@@ -120,7 +120,10 @@ impl Display {
         Ok(())
     }
 
-    pub fn draw_sprite(&mut self, sprite: &[u8], position: Position) -> Result<(), String> {
+    pub fn draw_sprite(&mut self, sprite: &[u8], position: Position) -> Result<bool, String> {
+        let mut collided = false;
+        let old_pixels = self.pixels;
+
         let mut row = position.y;
 
         let masks = [0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01];
@@ -137,15 +140,25 @@ impl Display {
                     column_index -= WIDTH;
                 }
 
-                self.pixels[row][column_index] = (line & mask) == *mask;
+                let current_pixel = self.pixels[row][column_index];
+                let new_pixel = (line & mask) != 0;
+                let updated_pixel = current_pixel ^ new_pixel;
+
+                if current_pixel && !updated_pixel {
+                    collided = true;
+                }
+
+                self.pixels[row][column_index] = updated_pixel;
             });
 
             row += 1;
         }
 
-        self.refresh()?;
+        if self.pixels != old_pixels {
+            self.refresh()?;
+        }
 
-        Ok(())
+        Ok(collided)
     }
 }
 
