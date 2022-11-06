@@ -140,6 +140,7 @@ impl Display {
                     column_index -= WIDTH;
                 }
 
+                // Sprites are XORed onto the screen, if a pixel has been erased, then there was a collision
                 let current_pixel = self.pixels[row][column_index];
                 let new_pixel = (line & mask) != 0;
                 let updated_pixel = current_pixel ^ new_pixel;

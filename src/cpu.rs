@@ -1,11 +1,11 @@
 use crate::{
     display::{self, Position},
-    ram,
+    keypad, ram,
 };
 
 use rand::prelude::*;
 
-use sdl2::{event::Event, keyboard::Keycode, Sdl};
+use sdl2::{event::Event, Sdl};
 use std::{error::Error, fs, thread, time::Duration};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
@@ -22,16 +22,17 @@ struct Instruction {
 
 pub struct CPU {
     delay_timer: u8,
-    sound_timer: u8,
+    display: display::Display,
     i: u16,
+    keypad: keypad::Keypad,
     pc: u16,
+    ram: ram::RAM,
+    rng: ThreadRng,
+    sdl_context: Sdl,
+    sound_timer: u8,
     sp: u8,
     stack: [u16; 16],
     v: [u8; 16],
-    display: display::Display,
-    ram: ram::RAM,
-    sdl_context: Sdl,
-    rng: ThreadRng,
 }
 
 impl CPU {
@@ -39,23 +40,24 @@ impl CPU {
         let sdl_context = sdl2::init().unwrap();
 
         let display = display::Display::new(&sdl_context);
-
+        let keypad = keypad::Keypad::new();
         let ram = ram::RAM::new();
 
         let rng = rand::thread_rng();
 
         CPU {
             delay_timer: 0,
-            sound_timer: 0,
+            display,
             i: 0,
+            keypad,
             pc: PROGRAM_STARTING_ADDRESS as u16,
+            ram,
+            rng,
+            sdl_context,
+            sound_timer: 0,
             sp: 0,
             stack: [0; 16],
             v: [0; 16],
-            display,
-            ram,
-            sdl_context,
-            rng,
         }
     }
 
@@ -137,11 +139,17 @@ impl CPU {
         'running: loop {
             for event in event_pump.poll_iter() {
                 match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'running,
+                    Event::Quit { .. } => break 'running,
+                    Event::KeyDown { keycode, .. } => {
+                        if let Some(key) = keycode {
+                            self.keypad.press_key(key);
+                        }
+                    }
+                    Event::KeyUp { keycode, .. } => {
+                        if let Some(key) = keycode {
+                            self.keypad.release_key(key);
+                        }
+                    }
                     _ => (),
                 }
             }
@@ -158,7 +166,8 @@ impl CPU {
 
             self.execute_instruction(&instruction)?;
 
-            thread::sleep(Duration::from_millis(2));
+            // Very easy way of throttling the CPU, should find cleaner solution that would have less of an impact of both timers
+            thread::sleep(Duration::from_millis(1));
         }
 
         Ok(())
@@ -180,8 +189,8 @@ impl CPU {
             0xB => self.execute_bnnn_instruction(instruction),
             0xC => self.execute_cxkk_instruction(instruction),
             0xD => self.execute_dxyn_instruction(instruction)?,
-            0xE => self.execute_exxx_instruction(instruction),
-            0xF => self.execute_fxxx_instruction(instruction),
+            0xE => self.execute_exxx_instruction(instruction)?,
+            0xF => self.execute_fxxx_instruction(instruction)?,
             _ => (),
         };
 
@@ -326,16 +335,52 @@ impl CPU {
         Ok(())
     }
 
-    fn execute_exxx_instruction(&mut self, instruction: &Instruction) {}
+    fn execute_exxx_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
+        match instruction.kk {
+            0x9E => {
+                let key = self.v[instruction.x];
 
-    fn execute_fxxx_instruction(&mut self, instruction: &Instruction) {
+                if self.keypad.is_key_pressed(key)? {
+                    self.pc += 2;
+                }
+            }
+            0xA1 => {
+                let key = self.v[instruction.x];
+
+                if !self.keypad.is_key_pressed(key)? {
+                    self.pc += 2;
+                }
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn execute_fxxx_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
         match instruction.kk {
             0x07 => self.v[instruction.x] = self.delay_timer,
+            0x0A => {
+                for key in 0x0u8..0xF {
+                    if self.keypad.is_key_pressed(key)? {
+                        self.v[instruction.x] = key;
+                        break; // Break out of loop if key is pressed so we move on to next instruction
+                    }
+                }
+
+                // Keep re-reading instruction until a key is press
+                self.pc -= 2;
+            }
             0x15 => self.delay_timer = self.v[instruction.x],
             0x18 => self.sound_timer = self.v[instruction.x],
             0x1E => self.i += self.v[instruction.x] as u16,
             0x29 => self.i = self.v[instruction.x] as u16 * 5,
+            0x33 => (), /* TODO */
+            0x55 => (), /* TODO */
+            0x65 => (), /* TODO */
             _ => (),
         }
+
+        Ok(())
     }
 }
