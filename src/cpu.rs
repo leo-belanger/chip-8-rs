@@ -9,6 +9,7 @@ use std::{error::Error, fs};
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
 
+#[derive(Debug)]
 struct Instruction {
     kk: u8,
     nnn: u16,
@@ -98,9 +99,10 @@ impl CPU {
 
         if bytes.len() != 2 {
             return Err(format!(
-                "Tried to read 2 bytes at address {:#04X?} but got {} byte(s).",
+                "Tried to read 2 bytes at address {:#04X?} but got {} byte(s). {:#04X?}",
                 self.pc,
-                bytes.len()
+                bytes.len(),
+                bytes
             ));
         }
 
@@ -139,7 +141,7 @@ impl CPU {
                         keycode: Some(Keycode::Escape),
                         ..
                     } => break 'running,
-                    _ => {}
+                    _ => (),
                 }
             }
 
@@ -152,6 +154,8 @@ impl CPU {
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
+        println!("Executing instruction {:?}", instruction);
+
         match instruction.nibbles.0 {
             0x0 => self.execute_00xx_instruction(instruction),
             0x1 => self.execute_1nnn_instruction(instruction),

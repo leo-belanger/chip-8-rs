@@ -34,6 +34,6 @@ impl RAM {
             ));
         }
 
-        Ok(&self.data[address..address + bytes_to_read + 1])
+        Ok(&self.data[address..address + bytes_to_read])
     }
 }
