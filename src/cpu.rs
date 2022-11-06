@@ -331,6 +331,10 @@ impl CPU {
     fn execute_fxxx_instruction(&mut self, instruction: &Instruction) {
         match instruction.kk {
             0x07 => self.v[instruction.x] = self.delay_timer,
+            0x15 => self.delay_timer = self.v[instruction.x],
+            0x18 => self.sound_timer = self.v[instruction.x],
+            0x1E => self.i += self.v[instruction.x] as u16,
+            0x29 => self.i = self.v[instruction.x] as u16 * 5,
             _ => (),
         }
     }
