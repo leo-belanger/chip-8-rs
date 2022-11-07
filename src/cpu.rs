@@ -37,17 +37,17 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new() -> CPU {
+    pub fn new() -> Result<CPU, Box<dyn Error>> {
         let sdl_context = sdl2::init().unwrap();
 
         let display = display::Display::new(&sdl_context);
         let keypad = keypad::Keypad::new();
         let ram = ram::RAM::new();
-        let speaker = speaker::Speaker::new(&sdl_context);
+        let speaker = speaker::Speaker::new(&sdl_context)?;
 
         let rng = rand::thread_rng();
 
-        CPU {
+        Ok(CPU {
             delay_timer: 0,
             display,
             i: 0,
@@ -61,7 +61,7 @@ impl CPU {
             speaker,
             stack: [0; 16],
             v: [0; 16],
-        }
+        })
     }
 
     pub fn run(&mut self, file_path: &str) -> Result<(), Box<dyn Error>> {
@@ -176,7 +176,7 @@ impl CPU {
             }
 
             // Very easy way of throttling the CPU, should find cleaner solution that would have less of an impact of both timers
-            thread::sleep(Duration::from_millis(1));
+            // /thread::sleep(Duration::from_millis(1));
         }
 
         Ok(())
@@ -251,7 +251,7 @@ impl CPU {
     }
 
     fn execute_7xkk_instruction(&mut self, instruction: &Instruction) {
-        self.v[instruction.x] += instruction.kk;
+        self.v[instruction.x] = self.v[instruction.x].wrapping_add(instruction.kk);
     }
 
     fn execute_8xyz_instruction(&mut self, instruction: &Instruction) {
@@ -397,32 +397,22 @@ impl CPU {
                 self.ram.write((self.i as usize) + 2, &[ones])?;
             }
             0x55 => {
-                let data = [
-                    self.v[0x0],
-                    self.v[0x1],
-                    self.v[0x2],
-                    self.v[0x3],
-                    self.v[0x4],
-                    self.v[0x5],
-                    self.v[0x6],
-                    self.v[0x7],
-                    self.v[0x8],
-                    self.v[0x9],
-                    self.v[0xA],
-                    self.v[0xB],
-                    self.v[0xC],
-                    self.v[0xD],
-                    self.v[0xE],
-                    self.v[0xF],
-                ];
+                let mut data: Vec<u8> = vec![];
+                for register_index in 0x0..=instruction.x {
+                    data.push(self.v[register_index]);
+                }
+
                 self.ram.write(self.i as usize, &data)?;
             }
             0x65 => {
-                let bytes = self.ram.read(self.i as usize, 16)?;
+                let bytes_to_read = instruction.x + 1;
 
-                if bytes.len() != 2 {
+                let bytes = self.ram.read(self.i as usize, bytes_to_read)?;
+
+                if bytes.len() != bytes_to_read {
                     return Err(format!(
-                        "Tried to read 8 bytes at address {:#04X?} but got {} byte(s). {:#04X?}",
+                        "Tried to read {} bytes at address {:#04X?} but got {} byte(s). {:#04X?}",
+                        bytes_to_read,
                         self.i,
                         bytes.len(),
                         bytes
