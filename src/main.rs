@@ -2,6 +2,7 @@ mod cpu;
 mod display;
 mod keypad;
 mod ram;
+mod speaker;
 
 use cpu::CPU;
 use std::{env, process};

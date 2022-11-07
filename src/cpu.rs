@@ -1,12 +1,12 @@
 use crate::{
     display::{self, Position},
-    keypad, ram,
+    keypad, ram, speaker,
 };
 
 use rand::prelude::*;
 
 use sdl2::{event::Event, Sdl};
-use std::{error::Error, fs, num::Wrapping, thread, time::Duration};
+use std::{error::Error, fs, thread, time::Duration};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
@@ -31,6 +31,7 @@ pub struct CPU {
     sdl_context: Sdl,
     sound_timer: u8,
     sp: u8,
+    speaker: speaker::Speaker,
     stack: [u16; 16],
     v: [u8; 16],
 }
@@ -42,6 +43,7 @@ impl CPU {
         let display = display::Display::new(&sdl_context);
         let keypad = keypad::Keypad::new();
         let ram = ram::RAM::new();
+        let speaker = speaker::Speaker::new(&sdl_context);
 
         let rng = rand::thread_rng();
 
@@ -56,6 +58,7 @@ impl CPU {
             sdl_context,
             sound_timer: 0,
             sp: 0,
+            speaker,
             stack: [0; 16],
             v: [0; 16],
         }
@@ -165,6 +168,12 @@ impl CPU {
             let instruction = self.read_instruction()?;
 
             self.execute_instruction(&instruction)?;
+
+            if self.sound_timer > 0 {
+                self.speaker.start_beep();
+            } else {
+                self.speaker.stop_beep();
+            }
 
             // Very easy way of throttling the CPU, should find cleaner solution that would have less of an impact of both timers
             thread::sleep(Duration::from_millis(1));
