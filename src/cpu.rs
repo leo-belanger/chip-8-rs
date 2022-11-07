@@ -6,7 +6,7 @@ use crate::{
 use rand::prelude::*;
 
 use sdl2::{event::Event, Sdl};
-use std::{error::Error, fs, thread, time::Duration};
+use std::{error::Error, fs, num::Wrapping, thread, time::Duration};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
@@ -265,7 +265,7 @@ impl CPU {
                     0
                 };
 
-                self.v[instruction.x] -= self.v[instruction.y];
+                self.v[instruction.x] = self.v[instruction.x].wrapping_sub(self.v[instruction.y]);
             }
             0x6 => {
                 self.v[0xF] = if self.v[instruction.x] & 0x01 != 0 {
@@ -283,7 +283,7 @@ impl CPU {
                     0
                 };
 
-                self.v[instruction.x] = self.v[instruction.y] - self.v[instruction.x];
+                self.v[instruction.x] = self.v[instruction.y].wrapping_sub(self.v[instruction.x]);
             }
             0xE => {
                 self.v[0xF] = if self.v[instruction.x] & 0x80 != 0 {
@@ -361,7 +361,7 @@ impl CPU {
         match instruction.kk {
             0x07 => self.v[instruction.x] = self.delay_timer,
             0x0A => {
-                for key in 0x0u8..0xF {
+                for key in 0x0u8..=0xF {
                     if self.keypad.is_key_pressed(key)? {
                         self.v[instruction.x] = key;
                         break; // Break out of loop if key is pressed so we move on to next instruction
@@ -375,9 +375,55 @@ impl CPU {
             0x18 => self.sound_timer = self.v[instruction.x],
             0x1E => self.i += self.v[instruction.x] as u16,
             0x29 => self.i = self.v[instruction.x] as u16 * 5,
-            0x33 => (), /* TODO */
-            0x55 => (), /* TODO */
-            0x65 => (), /* TODO */
+            0x33 => {
+                // Decimal to BCD
+                let vx = self.v[instruction.x];
+
+                let hundreds = vx / 100;
+                let tens = (vx - (hundreds * 100)) / 10;
+                let ones = vx - (hundreds * 100) - (tens * 10);
+
+                self.ram.write(self.i as usize, &[hundreds])?;
+                self.ram.write((self.i as usize) + 1, &[tens])?;
+                self.ram.write((self.i as usize) + 2, &[ones])?;
+            }
+            0x55 => {
+                let data = [
+                    self.v[0x0],
+                    self.v[0x1],
+                    self.v[0x2],
+                    self.v[0x3],
+                    self.v[0x4],
+                    self.v[0x5],
+                    self.v[0x6],
+                    self.v[0x7],
+                    self.v[0x8],
+                    self.v[0x9],
+                    self.v[0xA],
+                    self.v[0xB],
+                    self.v[0xC],
+                    self.v[0xD],
+                    self.v[0xE],
+                    self.v[0xF],
+                ];
+                self.ram.write(self.i as usize, &data)?;
+            }
+            0x65 => {
+                let bytes = self.ram.read(self.i as usize, 16)?;
+
+                if bytes.len() != 2 {
+                    return Err(format!(
+                        "Tried to read 8 bytes at address {:#04X?} but got {} byte(s). {:#04X?}",
+                        self.i,
+                        bytes.len(),
+                        bytes
+                    ));
+                }
+
+                for (byte_index, byte) in bytes.iter().enumerate() {
+                    self.v[byte_index] = byte.clone();
+                }
+            }
             _ => (),
         }
 

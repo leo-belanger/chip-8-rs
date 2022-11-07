@@ -39,7 +39,6 @@ impl Keypad {
     }
 
     fn map_keycode(keycode: Keycode) -> Option<usize> {
-        // TODO: abstract this a bit so we can support other keypad configs
         match keycode {
             Keycode::Num0 => Some(0x0),
             Keycode::Num1 => Some(0x1),
