@@ -4,7 +4,7 @@ mod keypad;
 mod ram;
 mod speaker;
 
-use clap::{self, Parser};
+use clap::Parser;
 use cpu::CPU;
 use std::process;
 

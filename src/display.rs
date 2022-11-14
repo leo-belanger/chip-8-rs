@@ -94,33 +94,6 @@ impl Display {
         Ok(())
     }
 
-    pub fn draw_character_from_font(
-        &mut self,
-        character: u8,
-        position: Position,
-    ) -> Result<(), String> {
-        let character_starting_index: usize = (character * 5).into();
-
-        if character_starting_index >= FONT_DATA.len() {
-            return Err(format!(
-                "Could not find character {:#04X?} to draw at position {:?}.",
-                character, position
-            ));
-        }
-
-        let sprite = [
-            FONT_DATA[character_starting_index],
-            FONT_DATA[character_starting_index + 1],
-            FONT_DATA[character_starting_index + 2],
-            FONT_DATA[character_starting_index + 3],
-            FONT_DATA[character_starting_index + 4],
-        ];
-
-        self.draw_sprite(&sprite, position)?;
-
-        Ok(())
-    }
-
     pub fn draw_sprite(&mut self, sprite: &[u8], position: Position) -> Result<bool, String> {
         let mut collided = false;
 
