@@ -14,7 +14,7 @@ use std::{
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
-const MAX_INSTRUCTION_PER_FRAME: u8 = 50; // This can vary a lot by programs, usually programs that are well designed should not care, but that's not always the case unfortunately
+const DEFAULT_INSTRUCTIONS_PER_FRAME: usize = 50; // This can vary a lot by programs, usually programs that are well designed should not care, but that's not always the case unfortunately
 const FRAME_TIME_IN_MILLIS: u64 = 17; // 1000 (1 sec in millis) / 60 (fps) = 16.666
 
 #[derive(Debug)]
@@ -70,11 +70,17 @@ impl CPU {
         })
     }
 
-    pub fn run(&mut self, file_path: &str) -> Result<(), Box<dyn Error>> {
+    pub fn run(
+        &mut self,
+        program_path: &str,
+        instructions_per_frame: Option<usize>,
+    ) -> Result<(), Box<dyn Error>> {
         self.load_font_in_ram()?;
-        self.load_program_in_ram(file_path)?;
+        self.load_program_in_ram(program_path)?;
 
-        self.main_loop()?;
+        let instructions_per_frame =
+            instructions_per_frame.unwrap_or(DEFAULT_INSTRUCTIONS_PER_FRAME);
+        self.main_loop(instructions_per_frame)?;
 
         Ok(())
     }
@@ -142,7 +148,7 @@ impl CPU {
         }
     }
 
-    fn main_loop(&mut self) -> Result<(), Box<dyn Error>> {
+    fn main_loop(&mut self, instructions_per_frame: usize) -> Result<(), Box<dyn Error>> {
         let mut event_pump = self.sdl_context.event_pump().unwrap();
 
         'running: loop {
@@ -152,7 +158,7 @@ impl CPU {
                 break 'running;
             }
 
-            for _ in 0..MAX_INSTRUCTION_PER_FRAME {
+            for _ in 0..instructions_per_frame {
                 let instruction = self.read_instruction()?;
                 self.execute_instruction(&instruction)?;
             }

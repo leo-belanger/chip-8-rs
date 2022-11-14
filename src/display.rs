@@ -32,6 +32,7 @@ impl Display {
         let window = video_subsystem
             .window("Chip-8-rs", 800, 600)
             .position_centered()
+            .resizable()
             .build()
             .unwrap();
 
