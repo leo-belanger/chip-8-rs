@@ -122,7 +122,6 @@ impl Display {
 
     pub fn draw_sprite(&mut self, sprite: &[u8], position: Position) -> Result<bool, String> {
         let mut collided = false;
-        let old_pixels = self.pixels;
 
         let mut row = position.y;
 
@@ -153,10 +152,6 @@ impl Display {
             });
 
             row += 1;
-        }
-
-        if self.pixels != old_pixels {
-            self.refresh()?;
         }
 
         Ok(collided)

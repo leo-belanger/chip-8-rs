@@ -5,11 +5,17 @@ use crate::{
 
 use rand::prelude::*;
 
-use sdl2::{event::Event, Sdl};
-use std::{error::Error, fs, thread, time::Duration};
+use sdl2::{event::Event, EventPump, Sdl};
+use std::{
+    error::Error,
+    fs, thread,
+    time::{Duration, Instant},
+};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
+const MAX_INSTRUCTION_PER_FRAME: u8 = 50; // This can vary a lot by programs, usually programs that are well designed should not care, but that's not always the case unfortunately
+const FRAME_TIME_IN_MILLIS: u64 = 17; // 1000 (1 sec in millis) / 60 (fps) = 16.666
 
 #[derive(Debug)]
 struct Instruction {
@@ -140,21 +146,15 @@ impl CPU {
         let mut event_pump = self.sdl_context.event_pump().unwrap();
 
         'running: loop {
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. } => break 'running,
-                    Event::KeyDown { keycode, .. } => {
-                        if let Some(key) = keycode {
-                            self.keypad.press_key(key);
-                        }
-                    }
-                    Event::KeyUp { keycode, .. } => {
-                        if let Some(key) = keycode {
-                            self.keypad.release_key(key);
-                        }
-                    }
-                    _ => (),
-                }
+            let start_time = Instant::now();
+
+            if self.process_events(&mut event_pump) {
+                break 'running;
+            }
+
+            for _ in 0..MAX_INSTRUCTION_PER_FRAME {
+                let instruction = self.read_instruction()?;
+                self.execute_instruction(&instruction)?;
             }
 
             if self.delay_timer > 0 {
@@ -165,21 +165,47 @@ impl CPU {
                 self.sound_timer -= 1;
             }
 
-            let instruction = self.read_instruction()?;
-
-            self.execute_instruction(&instruction)?;
-
             if self.sound_timer > 0 {
                 self.speaker.start_beep();
             } else {
                 self.speaker.stop_beep();
             }
 
-            // Very easy way of throttling the CPU, should find cleaner solution that would have less of an impact of both timers
-            // /thread::sleep(Duration::from_millis(1));
+            self.display.refresh()?;
+
+            let elapsed_time_in_millis = start_time.elapsed().as_millis();
+
+            if FRAME_TIME_IN_MILLIS as u128 > elapsed_time_in_millis {
+                thread::sleep(Duration::from_millis(
+                    FRAME_TIME_IN_MILLIS - elapsed_time_in_millis as u64,
+                ));
+            }
         }
 
         Ok(())
+    }
+
+    fn process_events(&mut self, event_pump: &mut EventPump) -> bool {
+        let mut should_quit = false;
+
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } => should_quit = true,
+                Event::KeyDown { keycode, .. } => {
+                    if let Some(key) = keycode {
+                        self.keypad.press_key(key);
+                    }
+                }
+                Event::KeyUp { keycode, .. } => {
+                    if let Some(key) = keycode {
+                        self.keypad.release_key(key);
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        return should_quit;
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
