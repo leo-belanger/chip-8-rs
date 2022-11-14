@@ -209,151 +209,178 @@ impl CPU {
     }
 
     fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
-        match instruction.nibbles.0 {
-            0x0 => self.execute_00xx_instruction(instruction),
-            0x1 => self.execute_1nnn_instruction(instruction),
-            0x2 => self.execute_2nnn_instruction(instruction),
-            0x3 => self.execute_3xkk_instruction(instruction),
-            0x4 => self.execute_4xkk_instruction(instruction),
-            0x5 => self.execute_5xy0_instruction(instruction),
-            0x6 => self.execute_6xkk_instruction(instruction),
-            0x7 => self.execute_7xkk_instruction(instruction),
-            0x8 => self.execute_8xyz_instruction(instruction),
-            0x9 => self.execute_9xy0_instruction(instruction),
-            0xA => self.execute_annn_instruction(instruction),
-            0xB => self.execute_bnnn_instruction(instruction),
-            0xC => self.execute_cxkk_instruction(instruction),
-            0xD => self.execute_dxyn_instruction(instruction)?,
-            0xE => self.execute_exxx_instruction(instruction)?,
-            0xF => self.execute_fxxx_instruction(instruction)?,
+        match instruction.nibbles {
+            (0x0, 0x0, 0xE, 0x0) => self.inst_00e0(),
+            (0x0, 0x0, 0xE, 0xE) => self.inst_00ee(),
+            (0x1, _, _, _) => self.inst_1nnn(instruction),
+            (0x2, _, _, _) => self.inst_2nnn(instruction),
+            (0x3, _, _, _) => self.inst_3xkk(instruction),
+            (0x4, _, _, _) => self.inst_4xkk(instruction),
+            (0x5, _, _, 0x0) => self.inst_5xy0(instruction),
+            (0x6, _, _, _) => self.inst_6xkk(instruction),
+            (0x7, _, _, _) => self.inst_7xkk(instruction),
+            (0x8, _, _, 0x0) => self.inst_8xy0(instruction),
+            (0x8, _, _, 0x1) => self.inst_8xy1(instruction),
+            (0x8, _, _, 0x2) => self.inst_8xy2(instruction),
+            (0x8, _, _, 0x3) => self.inst_8xy3(instruction),
+            (0x8, _, _, 0x4) => self.inst_8xy4(instruction),
+            (0x8, _, _, 0x5) => self.inst_8xy5(instruction),
+            (0x8, _, _, 0x6) => self.inst_8xy6(instruction),
+            (0x8, _, _, 0x7) => self.inst_8xy7(instruction),
+            (0x8, _, _, 0xE) => self.inst_8xye(instruction),
+            (0x9, _, _, 0x0) => self.inst_9xy0(instruction),
+            (0xA, _, _, _) => self.inst_annn(instruction),
+            (0xB, _, _, _) => self.inst_bnnn(instruction),
+            (0xC, _, _, _) => self.inst_cxkk(instruction),
+            (0xD, _, _, _) => self.inst_dxyn(instruction)?,
+            (0xE, _, 0x9, 0xE) => self.inst_ex9e(instruction)?,
+            (0xE, _, 0xA, 0x1) => self.inst_exa1(instruction)?,
+            (0xF, _, 0x0, 0x7) => self.inst_fx07(instruction),
+            (0xF, _, 0x0, 0xA) => self.inst_fx0a(instruction)?,
+            (0xF, _, 0x1, 0x5) => self.inst_fx15(instruction),
+            (0xF, _, 0x1, 0x8) => self.inst_fx18(instruction),
+            (0xF, _, 0x1, 0xE) => self.inst_fx1e(instruction),
+            (0xF, _, 0x2, 0xE) => self.inst_fx2e(instruction),
+            (0xF, _, 0x3, 0x3) => self.inst_fx33(instruction)?,
+            (0xF, _, 0x5, 0x5) => self.inst_fx55(instruction)?,
+            (0xF, _, 0x6, 0x5) => self.inst_fx65(instruction)?,
             _ => (),
         };
 
         Ok(())
     }
 
-    fn execute_00xx_instruction(&mut self, instruction: &Instruction) {
-        match instruction.kk {
-            0xE0 => self.display.clear(),
-            0xEE => {
-                self.pc = self.stack[self.sp as usize];
-                self.sp -= 1;
-            }
-            _ => (),
-        };
+    fn inst_00e0(&mut self) {
+        self.display.clear();
     }
 
-    fn execute_1nnn_instruction(&mut self, instruction: &Instruction) {
+    fn inst_00ee(&mut self) {
+        self.pc = self.stack[self.sp as usize];
+        self.sp -= 1;
+    }
+
+    fn inst_1nnn(&mut self, instruction: &Instruction) {
         self.pc = instruction.nnn;
     }
 
-    fn execute_2nnn_instruction(&mut self, instruction: &Instruction) {
+    fn inst_2nnn(&mut self, instruction: &Instruction) {
         self.sp += 1;
         self.stack[self.sp as usize] = self.pc;
 
         self.pc = instruction.nnn;
     }
 
-    fn execute_3xkk_instruction(&mut self, instruction: &Instruction) {
+    fn inst_3xkk(&mut self, instruction: &Instruction) {
         if self.v[instruction.x] == instruction.kk {
             self.pc += 2;
         }
     }
 
-    fn execute_4xkk_instruction(&mut self, instruction: &Instruction) {
+    fn inst_4xkk(&mut self, instruction: &Instruction) {
         if self.v[instruction.x] != instruction.kk {
             self.pc += 2;
         }
     }
 
-    fn execute_5xy0_instruction(&mut self, instruction: &Instruction) {
+    fn inst_5xy0(&mut self, instruction: &Instruction) {
         if self.v[instruction.x] == self.v[instruction.y] {
             self.pc += 2;
         }
     }
 
-    fn execute_6xkk_instruction(&mut self, instruction: &Instruction) {
+    fn inst_6xkk(&mut self, instruction: &Instruction) {
         self.v[instruction.x] = instruction.kk;
     }
 
-    fn execute_7xkk_instruction(&mut self, instruction: &Instruction) {
+    fn inst_7xkk(&mut self, instruction: &Instruction) {
         self.v[instruction.x] = self.v[instruction.x].wrapping_add(instruction.kk);
     }
 
-    fn execute_8xyz_instruction(&mut self, instruction: &Instruction) {
-        match instruction.nibbles.3 {
-            0x0 => self.v[instruction.x] = self.v[instruction.y],
-            0x1 => self.v[instruction.x] |= self.v[instruction.y],
-            0x2 => self.v[instruction.x] &= self.v[instruction.y],
-            0x3 => self.v[instruction.x] ^= self.v[instruction.y],
-            0x4 => {
-                let result: u16 = self.v[instruction.x] as u16 + self.v[instruction.y] as u16;
-
-                self.v[0xF] = if result > 255 { 1 } else { 0 };
-
-                self.v[instruction.x] = result as u8;
-            }
-            0x5 => {
-                self.v[0xF] = if self.v[instruction.x] > self.v[instruction.y] {
-                    1
-                } else {
-                    0
-                };
-
-                self.v[instruction.x] = self.v[instruction.x].wrapping_sub(self.v[instruction.y]);
-            }
-            0x6 => {
-                self.v[0xF] = if self.v[instruction.x] & 0x01 != 0 {
-                    1
-                } else {
-                    0
-                };
-
-                self.v[instruction.x] /= 2;
-            }
-            0x7 => {
-                self.v[0xF] = if self.v[instruction.y] > self.v[instruction.x] {
-                    1
-                } else {
-                    0
-                };
-
-                self.v[instruction.x] = self.v[instruction.y].wrapping_sub(self.v[instruction.x]);
-            }
-            0xE => {
-                self.v[0xF] = if self.v[instruction.x] & 0x80 != 0 {
-                    1
-                } else {
-                    0
-                };
-
-                self.v[instruction.x] *= 2;
-            }
-            _ => (),
-        }
+    fn inst_8xy0(&mut self, instruction: &Instruction) {
+        self.v[instruction.x] = self.v[instruction.y]
     }
 
-    fn execute_9xy0_instruction(&mut self, instruction: &Instruction) {
+    fn inst_8xy1(&mut self, instruction: &Instruction) {
+        self.v[instruction.x] |= self.v[instruction.y]
+    }
+
+    fn inst_8xy2(&mut self, instruction: &Instruction) {
+        self.v[instruction.x] &= self.v[instruction.y]
+    }
+
+    fn inst_8xy3(&mut self, instruction: &Instruction) {
+        self.v[instruction.x] ^= self.v[instruction.y]
+    }
+
+    fn inst_8xy4(&mut self, instruction: &Instruction) {
+        let result: u16 = self.v[instruction.x] as u16 + self.v[instruction.y] as u16;
+
+        self.v[0xF] = if result > 255 { 1 } else { 0 };
+
+        self.v[instruction.x] = result as u8;
+    }
+
+    fn inst_8xy5(&mut self, instruction: &Instruction) {
+        self.v[0xF] = if self.v[instruction.x] > self.v[instruction.y] {
+            1
+        } else {
+            0
+        };
+
+        self.v[instruction.x] = self.v[instruction.x].wrapping_sub(self.v[instruction.y]);
+    }
+
+    fn inst_8xy6(&mut self, instruction: &Instruction) {
+        self.v[0xF] = if self.v[instruction.x] & 0x01 != 0 {
+            1
+        } else {
+            0
+        };
+
+        self.v[instruction.x] = self.v[instruction.x].wrapping_div(2);
+    }
+
+    fn inst_8xy7(&mut self, instruction: &Instruction) {
+        self.v[0xF] = if self.v[instruction.y] > self.v[instruction.x] {
+            1
+        } else {
+            0
+        };
+
+        self.v[instruction.x] = self.v[instruction.y].wrapping_sub(self.v[instruction.x]);
+    }
+
+    fn inst_8xye(&mut self, instruction: &Instruction) {
+        self.v[0xF] = if self.v[instruction.x] & 0x80 != 0 {
+            1
+        } else {
+            0
+        };
+
+        self.v[instruction.x] = self.v[instruction.x].wrapping_mul(2);
+    }
+
+    fn inst_9xy0(&mut self, instruction: &Instruction) {
         if self.v[instruction.x] != self.v[instruction.y] {
             self.pc += 2;
         }
     }
 
-    fn execute_annn_instruction(&mut self, instruction: &Instruction) {
+    fn inst_annn(&mut self, instruction: &Instruction) {
         self.i = instruction.nnn;
     }
 
-    fn execute_bnnn_instruction(&mut self, instruction: &Instruction) {
+    fn inst_bnnn(&mut self, instruction: &Instruction) {
         self.pc = instruction.nnn + (self.v[0] as u16);
     }
 
-    fn execute_cxkk_instruction(&mut self, instruction: &Instruction) {
+    fn inst_cxkk(&mut self, instruction: &Instruction) {
         let random_byte: u8 = self.rng.gen_range(0..=255);
 
         self.v[instruction.x] = random_byte & instruction.kk;
     }
 
-    fn execute_dxyn_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
+    fn inst_dxyn(&mut self, instruction: &Instruction) -> Result<(), String> {
         let sprite = self
             .ram
             .read(self.i as usize, instruction.nibbles.3 as usize)?;
@@ -370,86 +397,103 @@ impl CPU {
         Ok(())
     }
 
-    fn execute_exxx_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
-        match instruction.kk {
-            0x9E => {
-                let key = self.v[instruction.x];
+    fn inst_ex9e(&mut self, instruction: &Instruction) -> Result<(), String> {
+        let key = self.v[instruction.x];
 
-                if self.keypad.is_key_pressed(key)? {
-                    self.pc += 2;
-                }
-            }
-            0xA1 => {
-                let key = self.v[instruction.x];
-
-                if !self.keypad.is_key_pressed(key)? {
-                    self.pc += 2;
-                }
-            }
-            _ => (),
+        if self.keypad.is_key_pressed(key)? {
+            self.pc += 2;
         }
 
         Ok(())
     }
 
-    fn execute_fxxx_instruction(&mut self, instruction: &Instruction) -> Result<(), String> {
-        match instruction.kk {
-            0x07 => self.v[instruction.x] = self.delay_timer,
-            0x0A => {
-                for key in 0x0u8..=0xF {
-                    if self.keypad.is_key_pressed(key)? {
-                        self.v[instruction.x] = key;
-                        break; // Break out of loop if key is pressed so we move on to next instruction
-                    }
-                }
+    fn inst_exa1(&mut self, instruction: &Instruction) -> Result<(), String> {
+        let key = self.v[instruction.x];
 
-                // Keep re-reading instruction until a key is press
-                self.pc -= 2;
+        if !self.keypad.is_key_pressed(key)? {
+            self.pc += 2;
+        }
+
+        Ok(())
+    }
+
+    fn inst_fx07(&mut self, instruction: &Instruction) {
+        self.v[instruction.x] = self.delay_timer;
+    }
+
+    fn inst_fx0a(&mut self, instruction: &Instruction) -> Result<(), String> {
+        for key in 0x0u8..=0xF {
+            if self.keypad.is_key_pressed(key)? {
+                self.v[instruction.x] = key;
+                break; // Break out of loop if key is pressed so we move on to next instruction
             }
-            0x15 => self.delay_timer = self.v[instruction.x],
-            0x18 => self.sound_timer = self.v[instruction.x],
-            0x1E => self.i += self.v[instruction.x] as u16,
-            0x29 => self.i = self.v[instruction.x] as u16 * 5,
-            0x33 => {
-                // Decimal to BCD
-                let vx = self.v[instruction.x];
+        }
 
-                let hundreds = vx / 100;
-                let tens = (vx - (hundreds * 100)) / 10;
-                let ones = vx - (hundreds * 100) - (tens * 10);
+        // Keep re-reading instruction until a key is press
+        self.pc -= 2;
 
-                self.ram.write(self.i as usize, &[hundreds])?;
-                self.ram.write((self.i as usize) + 1, &[tens])?;
-                self.ram.write((self.i as usize) + 2, &[ones])?;
-            }
-            0x55 => {
-                let mut data: Vec<u8> = vec![];
-                for register_index in 0x0..=instruction.x {
-                    data.push(self.v[register_index]);
-                }
+        Ok(())
+    }
 
-                self.ram.write(self.i as usize, &data)?;
-            }
-            0x65 => {
-                let bytes_to_read = instruction.x + 1;
+    fn inst_fx15(&mut self, instruction: &Instruction) {
+        self.delay_timer = self.v[instruction.x]
+    }
 
-                let bytes = self.ram.read(self.i as usize, bytes_to_read)?;
+    fn inst_fx18(&mut self, instruction: &Instruction) {
+        self.sound_timer = self.v[instruction.x]
+    }
 
-                if bytes.len() != bytes_to_read {
-                    return Err(format!(
-                        "Tried to read {} bytes at address {:#04X?} but got {} byte(s). {:#04X?}",
-                        bytes_to_read,
-                        self.i,
-                        bytes.len(),
-                        bytes
-                    ));
-                }
+    fn inst_fx1e(&mut self, instruction: &Instruction) {
+        self.i += self.v[instruction.x] as u16
+    }
 
-                for (byte_index, byte) in bytes.iter().enumerate() {
-                    self.v[byte_index] = byte.clone();
-                }
-            }
-            _ => (),
+    fn inst_fx2e(&mut self, instruction: &Instruction) {
+        self.i = self.v[instruction.x] as u16 * 5
+    }
+
+    fn inst_fx33(&mut self, instruction: &Instruction) -> Result<(), String> {
+        // Decimal to BCD
+        let vx = self.v[instruction.x];
+
+        let hundreds = vx / 100;
+        let tens = (vx - (hundreds * 100)) / 10;
+        let ones = vx - (hundreds * 100) - (tens * 10);
+
+        self.ram.write(self.i as usize, &[hundreds])?;
+        self.ram.write((self.i as usize) + 1, &[tens])?;
+        self.ram.write((self.i as usize) + 2, &[ones])?;
+
+        Ok(())
+    }
+
+    fn inst_fx55(&mut self, instruction: &Instruction) -> Result<(), String> {
+        let mut data: Vec<u8> = vec![];
+        for register_index in 0x0..=instruction.x {
+            data.push(self.v[register_index]);
+        }
+
+        self.ram.write(self.i as usize, &data)?;
+
+        Ok(())
+    }
+
+    fn inst_fx65(&mut self, instruction: &Instruction) -> Result<(), String> {
+        let bytes_to_read = instruction.x + 1;
+
+        let bytes = self.ram.read(self.i as usize, bytes_to_read)?;
+
+        if bytes.len() != bytes_to_read {
+            return Err(format!(
+                "Tried to read {} bytes at address {:#04X?} but got {} byte(s). {:#04X?}",
+                bytes_to_read,
+                self.i,
+                bytes.len(),
+                bytes
+            ));
+        }
+
+        for (byte_index, byte) in bytes.iter().enumerate() {
+            self.v[byte_index] = byte.clone();
         }
 
         Ok(())

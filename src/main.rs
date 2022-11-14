@@ -13,7 +13,6 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
 
-    // TODO: better error handling than just panicking
     let mut cpu = CPU::new().unwrap();
 
     if let Err(e) = cpu.run(file_path) {
