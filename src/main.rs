@@ -1,26 +1,17 @@
+mod cli;
 mod cpu;
 mod display;
 mod keypad;
 mod ram;
 mod speaker;
 
-use clap::Parser;
 use cpu::CPU;
 use std::process;
-
-#[derive(clap::Parser, Debug)]
-struct Args {
-    #[arg(short = 'p', long = "program_path", default_value_t = String::from("programs/test_opcode.ch8"))]
-    program_path: String,
-
-    #[arg(short = 'i', long = "instructions_per_frame")]
-    instructions_per_frame: Option<usize>,
-}
 
 fn main() {
     println!("Chip 8 emulator");
 
-    let args = Args::parse();
+    let args = cli::parse_args();
 
     let sdl_context = match sdl2::init() {
         Ok(sdl_context) => sdl_context,
