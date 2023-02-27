@@ -1,5 +1,7 @@
 extern crate sdl2;
 
+use std::error::Error;
+
 use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window, Sdl};
 
 const WIDTH: usize = 64;
@@ -26,26 +28,25 @@ pub struct Display {
 }
 
 impl Display {
-    pub fn new(sdl_context: &Sdl) -> Display {
-        let video_subsystem = sdl_context.video().unwrap();
+    pub fn new(sdl_context: &Sdl) -> Result<Display, Box<dyn Error>> {
+        let video_subsystem = sdl_context.video()?;
 
         let window = video_subsystem
             .window("Chip-8-rs", 800, 600)
             .position_centered()
             .resizable()
-            .build()
-            .unwrap();
+            .build()?;
 
-        let mut canvas = window.into_canvas().build().unwrap();
+        let mut canvas = window.into_canvas().build()?;
 
         canvas.set_draw_color(BLACK);
         canvas.clear();
         canvas.present();
 
-        Display {
+        Ok(Display {
             pixels: [[false; WIDTH]; HEIGHT],
             canvas,
-        }
+        })
     }
     pub fn clear(&mut self) {
         self.pixels.fill([false; 64]);

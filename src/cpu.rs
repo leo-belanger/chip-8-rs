@@ -26,7 +26,7 @@ struct Instruction {
     nibbles: (u8, u8, u8, u8),
 }
 
-pub struct CPU {
+pub struct CPU<'a> {
     delay_timer: u8,
     display: display::Display,
     i: u16,
@@ -34,7 +34,7 @@ pub struct CPU {
     pc: u16,
     ram: ram::RAM,
     rng: ThreadRng,
-    sdl_context: Sdl,
+    sdl_context: &'a Sdl,
     sound_timer: u8,
     sp: u8,
     speaker: speaker::Speaker,
@@ -42,14 +42,12 @@ pub struct CPU {
     v: [u8; 16],
 }
 
-impl CPU {
-    pub fn new() -> Result<CPU, Box<dyn Error>> {
-        let sdl_context = sdl2::init().unwrap();
-
-        let display = display::Display::new(&sdl_context);
+impl<'a> CPU<'a> {
+    pub fn new(sdl_context: &'a Sdl) -> Result<CPU, Box<dyn Error>> {
+        let display = display::Display::new(sdl_context)?;
         let keypad = keypad::Keypad::new();
         let ram = ram::RAM::new();
-        let speaker = speaker::Speaker::new(&sdl_context)?;
+        let speaker = speaker::Speaker::new(sdl_context)?;
 
         let rng = rand::thread_rng();
 

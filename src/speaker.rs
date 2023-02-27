@@ -32,12 +32,13 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(sdl_context: &Sdl) -> Result<Speaker, Box<dyn Error>> {
+        let audio_subsystem = sdl_context.audio()?;
+        
         let audio_spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(1),
             samples: None,
         };
-        let audio_subsystem = sdl_context.audio().unwrap();
 
         let audio_device = audio_subsystem.open_playback(None, &audio_spec, |spec| SquareWave {
             phase_inc: 750.0 / spec.freq as f32,

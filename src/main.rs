@@ -22,8 +22,16 @@ fn main() {
 
     let args = Args::parse();
 
-    let mut cpu = match CPU::new() {
-        Ok(new_cpu) => new_cpu,
+    let sdl_context = match sdl2::init() {
+        Ok(sdl_context) => sdl_context,
+        Err(e) => {
+            eprintln!("Error while initializing SDL: {e}");
+            process::exit(1);
+        }
+    };
+
+    let mut cpu = match CPU::new(&sdl_context) {
+        Ok(cpu) => cpu,
         Err(e) => {
             eprintln!("Error while trying to create the CPU: {e}");
             process::exit(1)
