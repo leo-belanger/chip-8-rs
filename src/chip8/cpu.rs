@@ -1,7 +1,4 @@
-use crate::{
-    display::{self, Position},
-    keypad, ram, speaker,
-};
+use super::{devices, ram};
 
 use rand::prelude::*;
 
@@ -28,16 +25,16 @@ struct Instruction {
 
 pub struct CPU<'a> {
     delay_timer: u8,
-    display: display::Display,
+    display: devices::Display,
     i: u16,
-    keypad: keypad::Keypad,
+    keypad: devices::Keypad,
     pc: u16,
     ram: ram::RAM,
     rng: ThreadRng,
     sdl_context: &'a Sdl,
     sound_timer: u8,
     sp: u8,
-    speaker: speaker::Speaker,
+    speaker: devices::Speaker,
     stack: [u16; 16],
     v: [u8; 16],
     instructions_per_frame: usize,
@@ -45,10 +42,10 @@ pub struct CPU<'a> {
 
 impl<'a> CPU<'a> {
     pub fn new(sdl_context: &'a Sdl) -> Result<CPU, Box<dyn Error>> {
-        let display = display::Display::new(sdl_context)?;
-        let keypad = keypad::Keypad::new();
+        let display = devices::Display::new(sdl_context)?;
+        let keypad = devices::Keypad::new();
         let ram = ram::RAM::new();
-        let speaker = speaker::Speaker::new(sdl_context)?;
+        let speaker = devices::Speaker::new(sdl_context)?;
 
         let rng = rand::thread_rng();
 
@@ -88,7 +85,7 @@ impl<'a> CPU<'a> {
     }
 
     fn load_font_in_ram(&mut self) -> Result<(), Box<dyn Error>> {
-        self.load_in_ram(FONT_STARTING_ADDRESS, &display::FONT_DATA)?;
+        self.load_in_ram(FONT_STARTING_ADDRESS, &devices::FONT_DATA)?;
 
         Ok(())
     }
@@ -401,7 +398,7 @@ impl<'a> CPU<'a> {
             .ram
             .read(self.i as usize, instruction.nibbles.3 as usize)?;
 
-        let position = Position::new(
+        let position = devices::Position::new(
             self.v[instruction.x] as usize,
             self.v[instruction.y] as usize,
         );

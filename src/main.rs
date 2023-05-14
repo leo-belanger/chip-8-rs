@@ -1,11 +1,7 @@
+mod chip8;
 mod cli;
-mod cpu;
-mod display;
-mod keypad;
-mod ram;
-mod speaker;
 
-use cpu::CPU;
+use chip8::CPU;
 use std::process;
 
 fn main() {
