@@ -5,7 +5,7 @@ use crate::{
 
 use rand::prelude::*;
 
-use sdl2::{event::Event, EventPump, Sdl};
+use sdl2::{event::Event, keyboard::Keycode, EventPump, Sdl};
 use std::{
     error::Error,
     fs, thread,
@@ -40,6 +40,7 @@ pub struct CPU<'a> {
     speaker: speaker::Speaker,
     stack: [u16; 16],
     v: [u8; 16],
+    instructions_per_frame: usize,
 }
 
 impl<'a> CPU<'a> {
@@ -65,6 +66,7 @@ impl<'a> CPU<'a> {
             speaker,
             stack: [0; 16],
             v: [0; 16],
+            instructions_per_frame: DEFAULT_INSTRUCTIONS_PER_FRAME,
         })
     }
 
@@ -76,9 +78,11 @@ impl<'a> CPU<'a> {
         self.load_font_in_ram()?;
         self.load_program_in_ram(program_path)?;
 
-        let instructions_per_frame =
-            instructions_per_frame.unwrap_or(DEFAULT_INSTRUCTIONS_PER_FRAME);
-        self.main_loop(instructions_per_frame)?;
+        if let Some(i) = instructions_per_frame {
+            self.instructions_per_frame = i;
+        }
+
+        self.main_loop()?;
 
         Ok(())
     }
@@ -146,7 +150,7 @@ impl<'a> CPU<'a> {
         }
     }
 
-    fn main_loop(&mut self, instructions_per_frame: usize) -> Result<(), Box<dyn Error>> {
+    fn main_loop(&mut self) -> Result<(), Box<dyn Error>> {
         let mut event_pump = self.sdl_context.event_pump().unwrap();
 
         'running: loop {
@@ -156,7 +160,7 @@ impl<'a> CPU<'a> {
                 break 'running;
             }
 
-            for _ in 0..instructions_per_frame {
+            for _ in 0..self.instructions_per_frame {
                 let instruction = self.read_instruction()?;
                 self.execute_instruction(&instruction)?;
             }
@@ -198,6 +202,14 @@ impl<'a> CPU<'a> {
                 Event::KeyDown { keycode, .. } => {
                     if let Some(key) = keycode {
                         self.keypad.press_key(key);
+
+                        match key {
+                            Keycode::PageUp => self.instructions_per_frame += 1,
+                            Keycode::PageDown if self.instructions_per_frame > 1 => {
+                                self.instructions_per_frame -= 1
+                            }
+                            _ => (),
+                        }
                     }
                 }
                 Event::KeyUp { keycode, .. } => {

@@ -33,7 +33,7 @@ pub struct Speaker {
 impl Speaker {
     pub fn new(sdl_context: &Sdl) -> Result<Speaker, Box<dyn Error>> {
         let audio_subsystem = sdl_context.audio()?;
-        
+
         let audio_spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(1),
