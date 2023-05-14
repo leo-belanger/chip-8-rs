@@ -1,4 +1,4 @@
-use super::{devices, ram};
+use super::{devices, ram, Position, FONT_DATA};
 
 use rand::prelude::*;
 
@@ -85,7 +85,7 @@ impl<'a> CPU<'a> {
     }
 
     fn load_font_in_ram(&mut self) -> Result<(), Box<dyn Error>> {
-        self.load_in_ram(FONT_STARTING_ADDRESS, &devices::FONT_DATA)?;
+        self.load_in_ram(FONT_STARTING_ADDRESS, &FONT_DATA)?;
 
         Ok(())
     }
@@ -398,7 +398,7 @@ impl<'a> CPU<'a> {
             .ram
             .read(self.i as usize, instruction.nibbles.3 as usize)?;
 
-        let position = devices::Position::new(
+        let position = Position::new(
             self.v[instruction.x] as usize,
             self.v[instruction.y] as usize,
         );
