@@ -1,8 +1,9 @@
 mod chip8;
 mod cli;
 
-use chip8::CPU;
 use std::process;
+
+use crate::chip8::Emulator;
 
 fn main() {
     println!("Chip 8 emulator");
@@ -17,15 +18,9 @@ fn main() {
         }
     };
 
-    let mut cpu = match CPU::new(&sdl_context) {
-        Ok(cpu) => cpu,
-        Err(e) => {
-            eprintln!("Error while trying to create the CPU: {e}");
-            process::exit(1)
-        }
-    };
+    let mut emulator = Emulator::new(args.instructions_per_frame, &sdl_context);
 
-    if let Err(e) = cpu.run(&args.program_path, args.instructions_per_frame) {
+    if let Err(e) = emulator.run(&args.program_path) {
         eprintln!("Chip-8 error: {e}");
         process::exit(1)
     }

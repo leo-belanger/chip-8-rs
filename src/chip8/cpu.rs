@@ -1,18 +1,15 @@
-use super::{devices, ram, Position, FONT_DATA};
+use super::{
+    devices::{self, Keypad},
+    ram, Position, FONT_DATA,
+};
 
 use rand::prelude::*;
 
-use sdl2::{event::Event, keyboard::Keycode, EventPump, Sdl};
-use std::{
-    error::Error,
-    fs, thread,
-    time::{Duration, Instant},
-};
+use sdl2::Sdl;
+use std::{error::Error, fs};
 
 const FONT_STARTING_ADDRESS: usize = 0x000;
 const PROGRAM_STARTING_ADDRESS: usize = 0x200;
-const DEFAULT_INSTRUCTIONS_PER_FRAME: usize = 50; // This can vary a lot by programs, usually programs that are well designed should not care, but that's not always the case unfortunately
-const FRAME_TIME_IN_MILLIS: u64 = 17; // 1000 (1 sec in millis) / 60 (fps) = 16.666
 
 #[derive(Debug)]
 struct Instruction {
@@ -23,27 +20,23 @@ struct Instruction {
     nibbles: (u8, u8, u8, u8),
 }
 
-pub struct CPU<'a> {
+pub struct CPU {
     delay_timer: u8,
     display: devices::Display,
     i: u16,
-    keypad: devices::Keypad,
     pc: u16,
     ram: ram::RAM,
     rng: ThreadRng,
-    sdl_context: &'a Sdl,
     sound_timer: u8,
     sp: u8,
     speaker: devices::Speaker,
     stack: [u16; 16],
     v: [u8; 16],
-    instructions_per_frame: usize,
 }
 
-impl<'a> CPU<'a> {
-    pub fn new(sdl_context: &'a Sdl) -> Result<CPU, Box<dyn Error>> {
+impl CPU {
+    pub fn new(sdl_context: &Sdl) -> Result<CPU, Box<dyn Error>> {
         let display = devices::Display::new(sdl_context)?;
-        let keypad = devices::Keypad::new();
         let ram = ram::RAM::new();
         let speaker = devices::Speaker::new(sdl_context)?;
 
@@ -53,44 +46,53 @@ impl<'a> CPU<'a> {
             delay_timer: 0,
             display,
             i: 0,
-            keypad,
             pc: PROGRAM_STARTING_ADDRESS as u16,
             ram,
             rng,
-            sdl_context,
             sound_timer: 0,
             sp: 0,
             speaker,
             stack: [0; 16],
             v: [0; 16],
-            instructions_per_frame: DEFAULT_INSTRUCTIONS_PER_FRAME,
         })
     }
 
-    pub fn run(
+    pub fn tick(
         &mut self,
-        program_path: &str,
-        instructions_per_frame: Option<usize>,
-    ) -> Result<(), Box<dyn Error>> {
-        self.load_font_in_ram()?;
-        self.load_program_in_ram(program_path)?;
-
-        if let Some(i) = instructions_per_frame {
-            self.instructions_per_frame = i;
+        keypad: &Keypad,
+        instructions_per_frame: usize,
+    ) -> Result<bool, Box<dyn Error>> {
+        for _ in 0..instructions_per_frame {
+            let instruction = self.read_instruction()?;
+            self.execute_instruction(&instruction, keypad)?;
         }
 
-        self.main_loop()?;
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
 
-        Ok(())
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
+
+        if self.sound_timer > 0 {
+            self.speaker.start_beep();
+        } else {
+            self.speaker.stop_beep();
+        }
+
+        self.display.refresh()?;
+
+        Ok(false)
     }
 
-    fn load_font_in_ram(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn load_font_in_ram(&mut self) -> Result<(), Box<dyn Error>> {
         self.load_in_ram(FONT_STARTING_ADDRESS, &FONT_DATA)?;
 
         Ok(())
     }
 
-    fn load_program_in_ram(&mut self, file_path: &str) -> Result<(), Box<dyn Error>> {
+    pub fn load_program_in_ram(&mut self, file_path: &str) -> Result<(), Box<dyn Error>> {
         let bytes = fs::read(file_path)?;
 
         println!("Read {} bytes from {}.", bytes.len(), file_path);
@@ -147,81 +149,11 @@ impl<'a> CPU<'a> {
         }
     }
 
-    fn main_loop(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut event_pump = self.sdl_context.event_pump().unwrap();
-
-        'running: loop {
-            let start_time = Instant::now();
-
-            if self.process_events(&mut event_pump) {
-                break 'running;
-            }
-
-            for _ in 0..self.instructions_per_frame {
-                let instruction = self.read_instruction()?;
-                self.execute_instruction(&instruction)?;
-            }
-
-            if self.delay_timer > 0 {
-                self.delay_timer -= 1;
-            }
-
-            if self.sound_timer > 0 {
-                self.sound_timer -= 1;
-            }
-
-            if self.sound_timer > 0 {
-                self.speaker.start_beep();
-            } else {
-                self.speaker.stop_beep();
-            }
-
-            self.display.refresh()?;
-
-            let elapsed_time_in_millis = start_time.elapsed().as_millis();
-
-            if FRAME_TIME_IN_MILLIS as u128 > elapsed_time_in_millis {
-                thread::sleep(Duration::from_millis(
-                    FRAME_TIME_IN_MILLIS - elapsed_time_in_millis as u64,
-                ));
-            }
-        }
-
-        Ok(())
-    }
-
-    fn process_events(&mut self, event_pump: &mut EventPump) -> bool {
-        let mut should_quit = false;
-
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } => should_quit = true,
-                Event::KeyDown { keycode, .. } => {
-                    if let Some(key) = keycode {
-                        self.keypad.press_key(key);
-
-                        match key {
-                            Keycode::PageUp => self.instructions_per_frame += 1,
-                            Keycode::PageDown if self.instructions_per_frame > 1 => {
-                                self.instructions_per_frame -= 1
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-                Event::KeyUp { keycode, .. } => {
-                    if let Some(key) = keycode {
-                        self.keypad.release_key(key);
-                    }
-                }
-                _ => (),
-            }
-        }
-
-        return should_quit;
-    }
-
-    fn execute_instruction(&mut self, instruction: &Instruction) -> Result<(), Box<dyn Error>> {
+    fn execute_instruction(
+        &mut self,
+        instruction: &Instruction,
+        keypad: &Keypad,
+    ) -> Result<(), Box<dyn Error>> {
         match instruction.nibbles {
             (0x0, 0x0, 0xE, 0x0) => self.inst_00e0(),
             (0x0, 0x0, 0xE, 0xE) => self.inst_00ee(),
@@ -246,10 +178,10 @@ impl<'a> CPU<'a> {
             (0xB, _, _, _) => self.inst_bnnn(instruction),
             (0xC, _, _, _) => self.inst_cxkk(instruction),
             (0xD, _, _, _) => self.inst_dxyn(instruction)?,
-            (0xE, _, 0x9, 0xE) => self.inst_ex9e(instruction)?,
-            (0xE, _, 0xA, 0x1) => self.inst_exa1(instruction)?,
+            (0xE, _, 0x9, 0xE) => self.inst_ex9e(instruction, keypad)?,
+            (0xE, _, 0xA, 0x1) => self.inst_exa1(instruction, keypad)?,
             (0xF, _, 0x0, 0x7) => self.inst_fx07(instruction),
-            (0xF, _, 0x0, 0xA) => self.inst_fx0a(instruction)?,
+            (0xF, _, 0x0, 0xA) => self.inst_fx0a(instruction, keypad)?,
             (0xF, _, 0x1, 0x5) => self.inst_fx15(instruction),
             (0xF, _, 0x1, 0x8) => self.inst_fx18(instruction),
             (0xF, _, 0x1, 0xE) => self.inst_fx1e(instruction),
@@ -410,20 +342,20 @@ impl<'a> CPU<'a> {
         Ok(())
     }
 
-    fn inst_ex9e(&mut self, instruction: &Instruction) -> Result<(), String> {
+    fn inst_ex9e(&mut self, instruction: &Instruction, keypad: &Keypad) -> Result<(), String> {
         let key = self.v[instruction.x];
 
-        if self.keypad.is_key_pressed(key)? {
+        if keypad.is_key_pressed(key)? {
             self.pc += 2;
         }
 
         Ok(())
     }
 
-    fn inst_exa1(&mut self, instruction: &Instruction) -> Result<(), String> {
+    fn inst_exa1(&mut self, instruction: &Instruction, keypad: &Keypad) -> Result<(), String> {
         let key = self.v[instruction.x];
 
-        if !self.keypad.is_key_pressed(key)? {
+        if !keypad.is_key_pressed(key)? {
             self.pc += 2;
         }
 
@@ -434,9 +366,9 @@ impl<'a> CPU<'a> {
         self.v[instruction.x] = self.delay_timer;
     }
 
-    fn inst_fx0a(&mut self, instruction: &Instruction) -> Result<(), String> {
+    fn inst_fx0a(&mut self, instruction: &Instruction, keypad: &Keypad) -> Result<(), String> {
         for key in 0x0u8..=0xF {
-            if self.keypad.is_key_pressed(key)? {
+            if keypad.is_key_pressed(key)? {
                 self.v[instruction.x] = key;
                 break; // Break out of loop if key is pressed so we move on to next instruction
             }

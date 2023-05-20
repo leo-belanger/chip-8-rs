@@ -1,8 +1,9 @@
 mod common;
 mod cpu;
+mod emulator;
 mod ram;
 
 pub mod devices;
 
 pub use common::{Position, FONT_DATA};
-pub use cpu::CPU;
+pub use emulator::Emulator;
