@@ -61,11 +61,9 @@ impl<'a> Emulator<'a> {
     }
 
     fn process_events(&mut self, event_pump: &mut EventPump) -> bool {
-        let mut should_quit = false;
-
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. } => should_quit = true,
+                Event::Quit { .. } => return true,
                 Event::KeyDown { keycode, .. } => {
                     if let Some(key) = keycode {
                         self.keypad.press_key(key);
@@ -88,6 +86,6 @@ impl<'a> Emulator<'a> {
             }
         }
 
-        return should_quit;
+        false
     }
 }

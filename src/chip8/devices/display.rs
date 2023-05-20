@@ -37,6 +37,7 @@ impl Display {
             canvas,
         })
     }
+
     pub fn clear(&mut self) {
         self.pixels.fill([false; 64]);
 
